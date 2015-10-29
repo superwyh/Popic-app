@@ -1,0 +1,716 @@
+//
+//  Main.m
+//  PostBar
+//
+//
+
+#import "Main.h"
+#import "TopicView.h"
+#import "SearchResultController.h"
+#import "LookRevertController.h"
+#import "ServerConfig.h"
+#import "JSON.h"
+#import "PostBar_Model.h"
+@implementation Main
+@synthesize topicViewController;
+@synthesize postsViewController;
+@synthesize favouriteViewController;
+@synthesize weeklyViewController;
+@synthesize hotViewController;
+@synthesize changeViewController;
+@synthesize searchViewController;
+@synthesize settingViewController;
+@synthesize postPostsViewController;
+@synthesize outtext;
+@synthesize intUid;
+@synthesize m_tableViewOut;
+@synthesize m_textField;
+@synthesize createView;
+
+#pragma mark -
+#pragma mark IBAction
+
+-(IBAction)backTouchButton{         //back按钮的实现
+	[self.view removeFromSuperview];
+}
+-(IBAction)postTouchButton{
+	if (postPostsViewController==nil) {
+		PostPosts *postPostsController=[[PostPosts alloc]initWithNibName:@"PostPosts" bundle:nil];
+		self.postPostsViewController=postPostsController;
+		[postPostsController release];
+	}
+	[self.view addSubview:postPostsViewController.view];
+}
+-(IBAction)histroyTouchButton{        //History按钮的实现
+	[UIView beginAnimations:nil context:nil];
+	[UIView setAnimationDuration:0.3];
+	[UIView setAnimationCurve:UIViewAnimationCurveLinear];
+	if (ShowOrHide) {
+		[outtext setFrame:CGRectMake(40, 415, 273, 0)];
+	}else {
+		[outtext setFrame:CGRectMake(40, 40, 273, 375)];
+		}
+	[UIView commitAnimations];
+
+
+	
+	[self.view addSubview:outtext];
+	ShowOrHide=(++ShowOrHide%2);
+}
+-(IBAction)settingTouchButton{
+	if (settingViewController==nil) {
+		Setting *settingController=[[Setting alloc]initWithNibName:@"Setting" bundle:nil];
+		self.settingViewController=settingController;
+		[settingController release];
+	}
+	[settingViewController refresh];
+	[self.view addSubview:settingViewController.view];
+}
+-(IBAction)leftTouchButton{
+	// The hud will dispable all input on the view (use the higest view possible in the view hierarchy)
+    HUD = [[MBProgressHUD alloc] initWithView:self.view];
+	
+    // Add HUD to screen
+    [self.view addSubview:HUD];
+	
+    // Regisete for HUD callbacks so we can remove it from the window at the right time
+    HUD.delegate = self;
+	
+    HUD.labelText = @"Loading...";
+	
+    // Show the HUD while the provided method executes in a new thread
+    [HUD showWhileExecuting:@selector(leftTouchButtonHUD) onTarget:self withObject:nil animated:YES];
+}
+-(IBAction)leftTouchButtonHUD{
+	[self deleteView];
+	CATransition *animation = [CATransition animation];
+    animation.duration = 0.5f;
+    animation.timingFunction = UIViewAnimationCurveEaseInOut;
+	animation.fillMode = kCAFillModeForwards;
+	animation.type = kCATransitionPush;
+	animation.subtype = kCATransitionFromLeft;
+	[self.view.layer addAnimation:animation forKey:@"animation"];
+	
+	if (rightButton.hidden) {
+		[self fresh];
+		[rightButton setHidden:NO];
+		[upButton setHidden:NO];
+	}else {
+		if (iFav==1) {
+			[favouriteViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:favouriteViewController.view];
+			[favouriteViewController loadTopic:intUid];
+			[favouriteViewController loadPosts:intUid];
+		}else if(iHot==1){
+			[hotViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:hotViewController.view];
+			[hotViewController loadTopic];
+			[hotViewController loadPosts];
+		}else if(iCha==1){
+			[changeViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:changeViewController.view];
+			[changeViewController loadTopic];
+			[changeViewController loadPosts];
+		}else if(iWee==1){
+			[weeklyViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:weeklyViewController.view];
+			[weeklyViewController loadTopic];
+			[weeklyViewController loadPosts];
+		}
+		[leftButton setHidden:YES];
+		[upButton setHidden:YES];
+	}
+
+}
+-(IBAction)rightTouchButton{
+// The hud will dispable all input on the view (use the higest view possible in the view hierarchy)
+HUD = [[MBProgressHUD alloc] initWithView:self.view];
+
+// Add HUD to screen
+[self.view addSubview:HUD];
+
+// Regisete for HUD callbacks so we can remove it from the window at the right time
+HUD.delegate = self;
+
+HUD.labelText = @"Loading...";
+
+// Show the HUD while the provided method executes in a new thread
+[HUD showWhileExecuting:@selector(rightTouchButtonHUD) onTarget:self withObject:nil animated:YES];
+}
+-(IBAction)rightTouchButtonHUD{
+	[self deleteView];
+	CATransition *animation = [CATransition animation];
+    animation.duration = 0.5f;
+    animation.timingFunction = UIViewAnimationCurveEaseInOut;
+	animation.fillMode = kCAFillModeForwards;
+	animation.type = kCATransitionPush;
+	animation.subtype = kCATransitionFromRight;
+	[self.view.layer addAnimation:animation forKey:@"animation"];
+	
+	if (leftButton.hidden) {
+		[self fresh];
+		[leftButton setHidden:NO];
+		[upButton setHidden:NO];
+	}else {
+		if (iFav==3) {
+			[favouriteViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:favouriteViewController.view];
+			[favouriteViewController loadTopic:intUid];
+			[favouriteViewController loadPosts:intUid];
+		}else if(iHot==3){
+			[hotViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:hotViewController.view];
+			[hotViewController loadTopic];
+			[hotViewController loadPosts];
+		}else if(iCha==3){
+			[changeViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:changeViewController.view];
+			[changeViewController loadTopic];
+			[changeViewController loadPosts];
+		}else if(iWee==3){
+			[weeklyViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:weeklyViewController.view];
+			[weeklyViewController loadTopic];
+			[weeklyViewController loadPosts];
+		}
+		[rightButton setHidden:YES];
+		[upButton setHidden:YES];
+	}
+}
+-(IBAction)upTouchButton{
+	// The hud will dispable all input on the view (use the higest view possible in the view hierarchy)
+	HUD = [[MBProgressHUD alloc] initWithView:self.view];
+	
+	// Add HUD to screen
+	[self.view addSubview:HUD];
+	
+	// Regisete for HUD callbacks so we can remove it from the window at the right time
+	HUD.delegate = self;
+	
+	HUD.labelText = @"Loading...";
+	
+	// Show the HUD while the provided method executes in a new thread
+	[HUD showWhileExecuting:@selector(upTouchButtonHUD) onTarget:self withObject:nil animated:YES];
+}
+-(IBAction)upTouchButtonHUD{
+	[self deleteView];
+	CATransition *animation = [CATransition animation];
+    animation.duration = 0.5f;
+    animation.timingFunction = UIViewAnimationCurveEaseInOut;
+	animation.fillMode = kCAFillModeForwards;
+	animation.type = kCATransitionPush;
+	
+	if (rightButton.hidden) {
+		animation.subtype = kCATransitionFromTop;
+		[self.view.layer addAnimation:animation forKey:@"animation"];
+		[self fresh];
+		[rightButton setHidden:NO];
+		[leftButton setHidden:NO];
+	}else {
+		animation.subtype = kCATransitionFromBottom;
+		[self.view.layer addAnimation:animation forKey:@"animation"];
+		if (iFav==0) {
+			[favouriteViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:favouriteViewController.view];
+			[favouriteViewController loadTopic:intUid];
+			[favouriteViewController loadPosts:intUid];
+		}else if(iHot==0){
+			[hotViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:hotViewController.view];
+			[hotViewController loadTopic];
+			[hotViewController loadPosts];
+		}else if(iCha==0){
+			[changeViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:changeViewController.view];
+			[changeViewController loadTopic];
+			[changeViewController loadPosts];
+		}else if(iWee==0){
+			[weeklyViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+			[self.view addSubview:weeklyViewController.view];
+			[weeklyViewController loadTopic];
+			[weeklyViewController loadPosts];
+		}
+		[leftButton setHidden:YES];
+		[rightButton setHidden:YES];
+	}
+	
+	
+}
+-(void)deleteView{
+	if(favouriteViewController.view!=nil){
+		[favouriteViewController.view removeFromSuperview];
+	}
+	if(weeklyViewController.view!=nil){
+		[weeklyViewController.view removeFromSuperview];
+	}
+	if(hotViewController.view!=nil){
+		[hotViewController.view removeFromSuperview];
+	}
+	if(changeViewController.view!=nil){
+		[changeViewController.view removeFromSuperview];
+	}
+}
+	
+/*
+ // The designated initializer.  Override if you create the controller programmatically and want to perform customization that is not appropriate for viewDidLoad.
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil {
+    if ((self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil])) {
+        // Custom initialization
+    }
+    return self;
+}
+*/
+
+-(void)addSub : (NSNotification *) no
+{
+	NSDictionary *dict = (NSDictionary *)[no object] ;
+
+	NSDictionary *results = [dict objectForKey:@"results"];
+	BOOL		 bTopic   = [[dict objectForKey:@"istopic"] boolValue] ;
+	
+	SearchResultController *search= [[SearchResultController alloc]initWithNibName:@"SearchResultController" bundle:nil];
+	[search.view setFrame:CGRectMake(0, 0, 320, 460)];
+	[self.view addSubview:search.view];
+	search.delegate=self;
+	//[self presentModalViewController:search animated:YES];
+	if (bTopic) {
+	[search setTopicDic:results TopicOrPost:bTopic];
+	}else
+	{
+	[search setPostDic:results TopicOrPost:bTopic];
+	}
+}
+-(void)LookRevert :(NSNotification *)no
+{
+	LookRevertController *lookRevertController=[[LookRevertController alloc]initWithNibName:@"LookRevertController" bundle:nil];
+	[self.view addSubview:lookRevertController.view];
+	if ([[no object] isKindOfClass:[NSArray class]]) {
+		NSArray *arr=(NSArray *)[no object];
+		[lookRevertController setarr:arr];
+	}else {
+		NSDictionary *dic=(NSDictionary *)[no object];
+		[lookRevertController setdic:dic];
+		//[lookRevertController setPid:[pid intValue]];
+	}
+		
+	
+	
+	
+}
+-(IBAction)createTopic
+{
+	UIView *CreateView=[[UIView alloc]initWithFrame:CGRectMake(0, 0, 320, 460)];
+	self.createView=CreateView;
+	createView.backgroundColor=[UIColor blackColor];
+	createView.tag=101;
+	[self.view addSubview:createView];
+	
+	UIImageView	*imageView=[[UIImageView alloc]initWithFrame:CGRectMake(14, 0, 292, 403)];
+	[imageView setImage:[UIImage imageNamed:@"beijing.png"]];
+	[createView addSubview:imageView];
+	
+	UIImageView	*textbg=[[UIImageView alloc]initWithFrame:CGRectMake(25, 123, 270, 31)];
+	[textbg setImage:[UIImage imageNamed:@"wenbenkuang2.png"]];
+	[createView addSubview:textbg];
+	
+	UITextField *textField=[[UITextField alloc]initWithFrame:CGRectMake(35, 123, 260, 31)];
+	self.m_textField=textField;
+	m_textField.textColor=[UIColor whiteColor];
+	m_textField.delegate=self;
+	[createView addSubview:m_textField];
+	
+	//UIButton *create=[[UIButton alloc] initWithFrame:CGRectMake(25, 201, 270, 37)];
+	
+	UIButton *create=[UIButton buttonWithType:UIButtonTypeCustom];
+	[create setFrame:CGRectMake(25, 201, 270, 37)];
+//	create.titleLabel.text=@"Create";
+	[create setTitle:@"Create" forState:UIControlStateNormal];
+	create.titleLabel.textColor=[UIColor whiteColor];
+	[create setBackgroundImage:[UIImage imageNamed:@"tanchu2anniu.png"] forState:UIControlStateNormal];
+	[create addTarget:self action:@selector(create) forControlEvents:UIControlEventTouchUpInside];
+	[createView addSubview:create];
+	
+	UIImageView	*xxx=[[UIImageView alloc]initWithFrame:CGRectMake(0, 407, 320, 53)];
+	[xxx setImage:[UIImage imageNamed:@"0001.png"]];
+	[createView addSubview:xxx];
+	
+	UIButton *back=[UIButton buttonWithType:UIButtonTypeCustom];
+	//[[UIButton alloc] initWithFrame:CGRectMake(5, 413, 72, 47)];
+	[back setFrame:CGRectMake(20, 413, 34, 40)];
+	[back setBackgroundImage:[UIImage imageNamed:@"Back.png"] forState:UIControlStateNormal];
+	[back addTarget:self action:@selector(createback) forControlEvents:UIControlEventTouchUpInside];
+	[createView addSubview:back];
+}
+-(void)createback
+{
+	[createView removeFromSuperview];
+	
+}
+-(void)create
+{
+	[m_textField resignFirstResponder];
+	if ([m_textField.text isEqualToString:@""]) {
+		UIAlertView *alert=[[UIAlertView alloc]initWithTitle:@"Oops!"
+													 message:@"Please input Topic" 
+													delegate:self
+										   cancelButtonTitle:@"Ok" 
+										   otherButtonTitles:nil];
+		[alert show];
+		[alert release];
+	}else {
+		NSString *stringdata=[[PostBar_Model ShareObjects]creatTopic:m_textField.text];
+		
+		if ([stringdata isEqualToString:@"Let CiTie already exists!"]) {
+			UIAlertView *alert=[[UIAlertView alloc]initWithTitle:@"Oops!"
+														 message:@"The Post Which You Choosed Was Already Exists" 
+														delegate:self
+											   cancelButtonTitle:@"Ok" 
+											   otherButtonTitles:nil];
+			[alert show];
+			[alert release];
+			
+		}else if ([stringdata isEqualToString:@"400"]) {
+			UIAlertView *alert=[[UIAlertView alloc]initWithTitle:@"Notice"
+														 message:@"Wrong!" 
+														delegate:self
+											   cancelButtonTitle:@"Ok" 
+											   otherButtonTitles:nil];
+			[alert show];
+			[alert release];
+		}else {
+			
+			NSDictionary *dic=[stringdata JSONValue];
+			for (NSDictionary *data in dic) {
+				int tid=[[data objectForKey:@"tid"] intValue];
+				[self loadTopic:m_textField.text Tid:tid ];
+				
+			}
+			m_textField.text=@"";
+			
+			
+		}
+	}
+
+
+	
+}
+// Implement viewDidLoad to do additional setup after loading the view, typically from a nib.
+- (void)viewDidLoad {
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(fresh) name:@"fresh" object:nil];
+	//[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(refresh) name:@"refresh" object:nil];
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(addSub:) name:@"addSubview" object:nil];
+	[[NSNotificationCenter defaultCenter]addObserver:self selector:@selector(LookRevert:) name:@"LookRevert" object:nil];
+
+	if (searchViewController==nil) {
+		Search * searchController=[[Search alloc]initWithNibName:@"Search" bundle:nil];
+		self.searchViewController=searchController;
+		[searchController release];
+	}
+	searchViewController.delegate=self;
+	[searchViewController setUid:intUid];
+	[searchViewController.view setFrame:CGRectMake(15, 28, 290, 65)];
+	[self.view addSubview:searchViewController.view];
+	
+	if (outtext==nil) {                 //创建out视图
+		UIView *outView=[[UIView alloc] init];
+		self.outtext=outView;
+		[outView release];
+	}
+	[outtext setBackgroundColor:[UIColor clearColor]];
+    [outtext setFrame:CGRectMake(40, 415, 273, 0)];
+    outtext.clipsToBounds=YES;
+	
+	UIImageView *historyImage=[[UIImageView alloc]initWithFrame:CGRectMake(1, 2, 273, 375)];  //创建背景图
+	[historyImage setImage:[UIImage imageNamed:@"lishitianchu.png"]];
+	[outtext addSubview:historyImage];
+	[historyImage release];
+	
+	UITableView *historyTableView=[[UITableView alloc]initWithFrame:CGRectMake(1, 2, 273, 365)]; //创建Tableview
+	self.m_tableViewOut=historyTableView;
+	[historyTableView release];
+	[m_tableViewOut setTag:3];
+	[m_tableViewOut setDelegate:self];
+	[m_tableViewOut setDataSource:self];
+	[m_tableViewOut setBackgroundColor:[UIColor clearColor]];
+	[m_tableViewOut setSeparatorStyle:UITableViewCellSeparatorStyleNone];
+	[outtext addSubview:m_tableViewOut];
+	
+
+	Favourite *favouriteController=[[Favourite alloc]initWithNibName:@"Favourite" bundle:nil ];
+	self.favouriteViewController=favouriteController;
+	favouriteViewController.delegate=self;
+	[favouriteController release];
+	
+	Hot *hotController=[[Hot alloc]initWithNibName:@"Hot" bundle:nil ];
+	self.hotViewController=hotController;
+	hotViewController.delegate=self;
+	[hotController release];
+	
+	Change *changeController=[[Change alloc]initWithNibName:@"Change" bundle:nil ];
+	self.changeViewController=changeController;
+	changeViewController.delegate=self;
+	[changeController release];
+	
+	Weekly *weeklyController=[[Weekly alloc]initWithNibName:@"Weekly" bundle:nil ];
+	self.weeklyViewController=weeklyController;
+	weeklyViewController.delegate=self;
+	[weeklyController release];
+	
+	AArray		=[[NSMutableArray alloc]init];
+	m_arrPid	=[[NSMutableArray alloc]init];
+	NSDictionary *results=[[PostBar_Model ShareObjects]HistoryView];
+		if (results==nil) {
+			UIAlertView *alert=[[UIAlertView alloc]initWithTitle:@"Network Failure"
+														 message:@"Times Out" 
+														delegate:self
+											   cancelButtonTitle:@"Ok" 
+										   otherButtonTitles:nil];
+			[alert show];
+			[alert release];
+		}else {
+				for (NSDictionary *data in results) {
+					NSString *pname		=[data objectForKey:@"pname"];
+					NSString *pid		=[data objectForKey:@"pid"];					
+				    [AArray		addObject:pname];
+					[m_arrPid	addObject:pid];
+					
+				    }
+			[m_tableViewOut	reloadData];
+		}
+
+	[self fresh];
+    [super viewDidLoad];
+}
+#pragma mark -
+#pragma mark myAction
+
+-(void)fresh{                //载入中间四个视图当中的一个时候的判断
+	[self deleteView];
+	iFav = [[[NSUserDefaults standardUserDefaults] objectForKey:@"fav"] intValue];
+	iHot = [[[NSUserDefaults standardUserDefaults] objectForKey:@"hot"] intValue];
+	iCha = [[[NSUserDefaults standardUserDefaults] objectForKey:@"change"] intValue];
+	iWee = [[[NSUserDefaults standardUserDefaults] objectForKey:@"weekly"] intValue];
+	
+	if (iFav==2) {
+    	[favouriteViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+		[self.view insertSubview:favouriteViewController.view belowSubview:searchViewController.view];
+		[favouriteViewController loadTopic:intUid];
+		[favouriteViewController loadPosts:intUid];
+		[favouriteViewController.m_tableViewTopic reloadData];
+		[favouriteViewController.m_tableViewPost  reloadData];
+	}else if(iHot==2){
+		[hotViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+		[self.view insertSubview:hotViewController.view  belowSubview:searchViewController.view];
+		[hotViewController loadTopic];
+		[hotViewController loadPosts];
+		[hotViewController.m_tableViewPost reloadData];
+		[hotViewController.m_tableViewTopic	reloadData];
+	}else if(iCha==2){
+		[changeViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+		[self.view insertSubview:changeViewController.view belowSubview:searchViewController.view];
+		[changeViewController loadTopic];
+		[changeViewController loadPosts];
+		[changeViewController.m_tableViewPost reloadData];
+		[changeViewController.m_tableViewTopic reloadData];
+	}else if(iWee==2){
+		[weeklyViewController.view setFrame:CGRectMake(15, 100, 290, 300)];
+		[self.view insertSubview:weeklyViewController.view  belowSubview:searchViewController.view];
+		[weeklyViewController loadTopic];
+		[weeklyViewController loadPosts];
+		[weeklyViewController.m_tableViewPost reloadData];
+		[weeklyViewController.m_tableViewTopic reloadData];
+	}
+
+}
+
+
+- (void)didReceiveMemoryWarning {
+    // Releases the view if it doesn't have a superview.
+    [super didReceiveMemoryWarning];
+    
+    // Release any cached data, images, etc that aren't in use.
+}
+
+- (void)viewDidUnload {
+
+    [super viewDidUnload];
+}
+
+
+- (void)dealloc {
+	[m_tableViewOut release];
+	[AArray release];
+	[postPostsViewController release];
+	[settingViewController release];
+	[outtext release];
+	[favouriteViewController release];
+	[hotViewController release];
+	[weeklyViewController release];
+	[changeViewController release];
+	[searchViewController release];
+    [super dealloc];
+}
+
+#pragma mark -
+#pragma mark controllerDelegate
+
+-(void)loadTopic:(NSString *)topicname Tid:(int)tid {
+	[NSThread detachNewThreadSelector:@selector(startWait) toTarget:self withObject:nil];
+   
+	if (topicViewController==nil) {
+		TopicView *topicController=[[TopicView alloc]initWithNibName:@"TopicView" bundle:nil];
+		self.topicViewController=topicController;
+		topicViewController.delegate=self;
+		[topicController release];
+	}
+	[self.view addSubview:topicViewController.view];
+	topicViewController.titleLabel.text=topicname;
+	[topicViewController loadPosts:tid];
+	
+	[activityView setHidden:YES];
+	[activityView stopAnimating];
+}
+
+-(void)startWait{
+
+	activityView.hidden=NO;
+	[activityView startAnimating];
+}
+-(void)loadPosts:(NSString *)Pname Pid:(int)pid  {
+	[NSThread detachNewThreadSelector:@selector(startWait) toTarget:self withObject:nil];
+	
+	if (postsViewController==nil) {
+		PostsView *postsController=[[PostsView alloc]initWithNibName:@"PostsView" bundle:nil];
+		self.postsViewController=postsController;
+		[postsController release];
+	}
+	
+	[self.view addSubview:postsViewController.view];
+	NSDictionary *dic=[[PostBar_Model ShareObjects]HistoryResult:pid];
+//	if (!dic) {
+//		UIAlertView *alert=[[UIAlertView alloc]initWithTitle:@"Notice"
+//													 message:@"Your histroyList is empty" 
+//													delegate:self
+//										   cancelButtonTitle:@"Ok" 
+//										   otherButtonTitles:nil];
+//		[alert show];
+//		[alert release];
+//	}
+	
+	if (![postsViewController.toTextView.text isEqualToString:@""]) {
+		postsViewController.toTextView.text=@"";
+	}
+	NSString *fromLabel	=[dic objectForKey:@"fromLabel"];
+	NSString *pcontent	=[dic objectForKey:@"pcontent"];
+	NSString *content	=[NSString stringWithFormat:@"<body style='color:white;font-size:12px;'>%@</body>",pcontent];
+	NSString *pName		=[dic objectForKey:@"pname"];
+	NSString *Puid		=[dic objectForKey:@"uid"];
+	NSString *src		=[dic objectForKey:@"pimage"];
+    NSString *musicSrc	=[dic objectForKey:@"pmusic"];
+	NSString *imgsrc	=[ServerRoot stringByAppendingFormat:@"/images/%@",src];
+	NSData *data=[NSData dataWithContentsOfURL:[NSURL URLWithString:imgsrc]];
+	UIImage *image=[UIImage imageWithData:data];
+	if (!image) {
+		postsViewController.m_buttonPic.hidden=YES;
+	}else {
+		postsViewController.m_buttonPic.hidden=NO;
+		postsViewController.m_image=image;
+	}
+	NSString *musicpath	=[ServerRoot stringByAppendingFormat:@"/music/%@",musicSrc];
+	NSURL    *url=       [NSURL      URLWithString:musicpath];
+	NSData	*dataMusic	=[NSData dataWithContentsOfURL:url];
+	
+	if (!dataMusic ) {
+		postsViewController.m_buttonMusic.hidden=YES;
+	}else {
+		postsViewController.m_buttonMusic.hidden=NO;
+		[postsViewController setdataMusic:dataMusic];
+	}
+	[postsViewController setPid:pid Puid:[Puid intValue]];
+	[postsViewController.fromWebView loadHTMLString:content baseURL:nil] ;
+	postsViewController.fromLabel.text=fromLabel;
+	postsViewController.titleLabel.text=pName;
+	NSDictionary *results=[[PostBar_Model ShareObjects]HistoryView];
+
+	[AArray removeAllObjects];
+	[m_arrPid removeAllObjects];
+	for (NSDictionary *data in results) {
+		NSString *pname		=[data objectForKey:@"pname"];
+		NSString *pid		=[data objectForKey:@"pid"];
+		[AArray		addObject:pname];
+		[m_arrPid	addObject:pid];
+	}
+	
+	[m_tableViewOut	reloadData];
+	activityView.hidden=YES;
+	[activityView stopAnimating];
+}
+	
+	
+
+-(void)swipeLeft{
+	NSLog(@"左");
+	if (!rightButton.hidden) {
+		[self rightTouchButton];
+	}
+}
+-(void)swipeRight{
+	NSLog(@"右");
+	if (!leftButton.hidden) {
+		[self leftTouchButton];		
+	}
+
+}
+#pragma mark -
+#pragma mark UITableView datasource
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section{
+	return [AArray count];
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath{
+	static NSString *PresidentCellIdentifier=@"PresidentCellIdentifier";
+	UITableViewCell *cell=[tableView dequeueReusableCellWithIdentifier:PresidentCellIdentifier];
+	if (cell==nil) {
+		cell=[[[UITableViewCell alloc]initWithFrame:CGRectZero reuseIdentifier:PresidentCellIdentifier]autorelease];
+	}
+	cell.selectionStyle=UITableViewCellSelectionStyleBlue;
+	switch (tableView.tag) {
+		case 3:
+			[[cell textLabel]setText:[AArray objectAtIndex:indexPath.row]];
+			break;
+
+		default:
+			break;
+	}
+	[[cell textLabel]setTextColor:[UIColor whiteColor]];
+	return cell;
+}
+- (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath{
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+	switch (tableView.tag) {
+		case 3:
+		{
+			[self histroyTouchButton];
+			int pid=[[m_arrPid objectAtIndex:indexPath.row] intValue];
+			[self loadPosts:[AArray objectAtIndex:indexPath.row] Pid:pid];
+			break;
+		}
+		default:
+			break;
+	}
+	
+}
+- (BOOL)textFieldShouldReturn:(UITextField *)textField
+{
+	[textField resignFirstResponder];
+	return YES;
+}
+#pragma mark -
+#pragma mark MBProgressHUDDelegate methods
+
+- (void)hudWasHidden:(MBProgressHUD *)hud {
+	NSLog(@"alslslslHUD: %@", hud);
+    // Remove HUD from screen when the HUD was hidded
+    [HUD removeFromSuperview];
+    [HUD release];
+}
+@end

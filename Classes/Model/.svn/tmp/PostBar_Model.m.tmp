@@ -1,0 +1,584 @@
+    //
+//  PostBar_Model.m
+//  PostBar
+//
+//  Created by DQ on 7/1/11.
+//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//
+
+#import "PostBar_Model.h"
+#import "ServerConfig.h"
+#import "JSON.h"
+#import "ASIHttpHeaders.h"
+//#import "Facebook_Model.h"
+@implementation PostBar_Model
+@synthesize delegate;
+@synthesize  m_facebook;
+@synthesize  m_facebookUserName ;
+
+static NSString* kAppId = @"106289739466664";
+
+static PostBar_Model *sharedListInstance = nil;
+@synthesize m_uid;
+@synthesize m_uName;
+/*
+ 
+ NSString	*strUrl		= [NSString stringWithFormat:@""];
+ NSURL		*url		= [NSURL URLWithString:strUrl];
+ 
+ ASIHTTPRequest	*request= [ASIHTTPRequest requestWithURL:url];
+ [request setRequestMethod:@"GET"];
+ [request start] ;
+ 
+ 
+ NSData *data = [request responseData];
+ 
+ NSString *string = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+ 
+ NSLog(@"string = %@" ,string) ;
+ 
+ */
+
++(PostBar_Model *)ShareObjects
+{
+	@synchronized(self) {
+		if (sharedListInstance == nil) {
+			[[self alloc] init]; // assignment not done here
+		}
+	}
+	return sharedListInstance;
+}
+
++ (id)allocWithZone:(NSZone *)zone {
+	@synchronized(self) {
+		if (sharedListInstance == nil) {
+			sharedListInstance = [super allocWithZone:zone];
+			return sharedListInstance;  // assignment and return on first allocation
+		}
+	}
+	return nil; //on subsequent allocation attempts return nil
+}
+-(id)init
+{
+	if ([super init]) {
+		int fav = [[[NSUserDefaults standardUserDefaults] objectForKey:@"fav"] intValue];
+		if (!fav) {
+			[[NSUserDefaults standardUserDefaults] setObject:@"YES" forKey:@"warp"];
+			[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:2] forKey:@"fav"];
+			[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:3] forKey:@"hot"];
+			[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:0] forKey:@"change"];
+			[[NSUserDefaults standardUserDefaults] setObject:[NSNumber numberWithInt:1] forKey:@"weekly"];
+			[[NSUserDefaults standardUserDefaults] synchronize];
+		}
+		m_uid=-1;
+		m_uName=@"";
+		m_facebook = [[Facebook alloc] initWithAppId:kAppId];
+		m_facebookPermissions =  [[NSArray arrayWithObjects:
+								   @"read_stream", @"publish_stream", @"offline_access",nil] retain];
+		//[self facebookLogin];
+		//[[Facebook_Model sharedObject] facebookLogin];
+	}
+	
+	return nil;
+}
+//通过url返回stingdata
+-(NSString *)GetString:(NSString *)strUrl
+{
+	NSURL		*url	= [NSURL URLWithString:strUrl];
+	ASIHTTPRequest	*request= [ASIHTTPRequest requestWithURL:url];
+	[request setRequestMethod:@"GET"];
+	[request start] ;
+	NSData *data = [request responseData];
+	if (data.length==0) {
+		return nil;
+	}
+	NSLog(@"data.length====%d",data.length);
+	NSString *stringdata = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+	return stringdata;
+}
+-(NSString *)getUname
+{
+	if (m_uName) {
+		return m_uName;
+	}else {
+		return nil;
+	}
+
+}
+-(NSString *)deleteUname
+{
+	if (m_uName) {
+		m_uName=@"";
+		return @"success";
+	}else {
+		return @"fail";
+	}
+
+}
+//获取当前用户uid
+-(int)getUid
+{
+	if (m_uid) {
+		return m_uid;
+	}else {
+		return -1;
+	}
+
+	
+}
+#pragma mark 
+#pragma mark UsersMethod
+//用户登录
+-(NSString *)Login:(NSString *)name Password:(NSString *)pass
+{
+//	/servlet/UsersServlet?op=Login&,name=%@&pass=%@	
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/UsersServlet?op=Login&name=%@&pass=%@",name,pass];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}else if ([stringdata isEqualToString:@"400"]) {
+		return @"400";
+	}else {
+		NSDictionary *results= [stringdata JSONValue] ;
+		for (NSDictionary *data in results)
+		{
+			NSString *uid=[data objectForKey:@"uid"] ;
+			self.m_uid=[uid intValue];
+		}
+		self.m_uName=name;
+		return stringdata;
+	}
+
+	
+	
+}
+//注册用户
+-(NSString *)RegisterUser:(NSString *)name Password:(NSString *)pass  EMail:(NSString *)email
+{
+	//op=addInfo&%20name=a&%20pass=aaaaaa&%20email=qq@qq.com
+	NSString	*strUrl		= [ServerRoot stringByAppendingFormat:@"/servlet/UsersServlet?op=addInfo&name=%@&pass=%@&email=%@",name,pass,email];
+	NSString	*stringdata	=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+    return stringdata;
+	
+}
+//修改密码
+-(NSString *)ResetPassword:(NSString *)oldpass  Confirm:(NSString *)confirmPass
+{
+	NSString	*username	=[[NSUserDefaults standardUserDefaults]objectForKey:@"userName"]; 
+	NSString	*strUrl		= [ServerRoot stringByAppendingFormat:@"/servlet/UsersServlet?op=updatepass&name=%@&pass=%@&npass=%@",username,oldpass,confirmPass];
+	NSString	*stringdata	=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+    return stringdata;
+	
+}
+#pragma mark 
+#pragma mark FourView
+//－－－－－－－－－－－－－－－－历史最新－－－－－－－－－－－－－－－－－－－－－
+-(NSDictionary *)getChangePost
+{
+	NSString	*strUrl		= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=changepost"];
+	NSString	*stringdata	=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary   *results		=[stringdata JSONValue];
+	NSMutableArray *arrPname	=[[NSMutableArray alloc]init];
+	NSMutableArray *arrPid		=[[NSMutableArray alloc]init];
+	for (NSDictionary *data in results) {
+		NSString *pname=[data objectForKey:@"pname"];	
+		[arrPname  addObject:pname];
+		NSString *pid=[data objectForKey:@"pid"];
+		[arrPid		addObject:pid];
+	}
+	NSDictionary *dic=[[NSDictionary alloc]initWithObjectsAndKeys:arrPname,@"Pname",arrPid,@"Pid",nil];
+	return dic;
+
+	
+}
+-(NSDictionary *)getChangeTopic
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/TopicServlet?op=changetopic"];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *dic=[stringdata JSONValue];
+	NSLog(@"dic=====%@",dic);
+	return dic;
+	
+}
+//---------------------最喜欢的－－－－－－－－－－－－－－－－－－－－－－－－－－
+
+-(NSDictionary *)getfavouritePost
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=getSavePost&uid=%d",m_uid];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary	*results	=[stringdata JSONValue];
+	NSMutableArray	*arrPname	=[[NSMutableArray alloc]init];
+	NSMutableArray	*arrPid		=[[NSMutableArray alloc]init];
+	for (NSDictionary *data in results) {
+		NSString *pname	=[data objectForKey:@"pname"];	
+		NSString *pid	=[data objectForKey:@"pid"];
+		[arrPname  addObject:pname];
+		[arrPid		addObject:pid];
+	}
+	NSDictionary *dic=[[NSDictionary alloc]initWithObjectsAndKeys:arrPname,@"Pname",arrPid,@"Pid",nil];
+	return dic;
+}
+-(NSDictionary *)getfavouriteTopic
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/TopicServlet?op=savetopic&uid=%d",m_uid];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *dic=[stringdata JSONValue];
+	NSLog(@"dic=====%@",dic);
+	return dic;
+}
+
+//－－－－－－－－－－－－本周最新的－－－－－－－－－－－－－－－－－－－－－－－－－
+-(NSDictionary *)getWeeklyPost
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=weekhotpost"];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *results=[stringdata JSONValue];
+	NSMutableArray *arrPname=[[NSMutableArray alloc]init];
+	NSMutableArray *arrPid=[[NSMutableArray alloc]init];
+	for (NSDictionary *data in results) {
+		NSString *pname=[data objectForKey:@"pname"];	
+		[arrPname  addObject:pname];
+		NSString *pid=[data objectForKey:@"pid"];
+		[arrPid		addObject:pid];
+	}
+	NSDictionary *dic=[[NSDictionary alloc]initWithObjectsAndKeys:arrPname,@"Pname",arrPid,@"Pid",nil];
+	return dic;
+}
+-(NSDictionary *)getWeeklyTopic
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/TopicServlet?op=weekhottopic"];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *dic=[stringdata JSONValue];
+	NSLog(@"dic=====%@",dic);
+	return dic;
+}
+//－－－－－－－－－－－－历史最热---------------------------------------------
+-(NSDictionary *)getHotPost
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=hotpost"];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *results=[stringdata JSONValue];
+	NSMutableArray *arrPname=[[NSMutableArray alloc]init];
+	NSMutableArray *arrPid=[[NSMutableArray alloc]init];
+	for (NSDictionary *data in results) {
+		NSString *pname=[data objectForKey:@"pname"];	
+		[arrPname  addObject:pname];
+		NSString *pid=[data objectForKey:@"pid"];
+		[arrPid		addObject:pid];
+	}
+	NSDictionary *dic=[[NSDictionary alloc]initWithObjectsAndKeys:arrPname,@"Pname",arrPid,@"Pid",nil];
+	return dic;
+}
+-(NSDictionary *)getHotTopic
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/TopicServlet?op=hottopic"];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *dic=[stringdata JSONValue];
+	NSLog(@"dic=====%@",dic);
+	return dic;
+}
+#pragma mark 
+#pragma mark Posts
+//查询贴子or贴吧，YES为贴吧，NO为贴子
+-(NSDictionary *)Search:(NSString *)searchContent IsTopicOrPost:(BOOL)TorP
+{
+if(TorP)
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/TopicServlet?op=getInfoByname&tname=%@",searchContent];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *dic=[stringdata JSONValue];
+	NSLog(@"dic=====%@",dic);
+	return dic;
+}else{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=getPostByName&pname=%@",searchContent];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *dic=[stringdata JSONValue];
+	NSLog(@"dic=====%@",dic);
+	return dic;
+}
+
+}
+ 
+//查看当前帖子的回复
+-(NSArray  *)Comments:(int)pid
+{
+	//http://192.168.1.14:8080/PostBar/servlet/RepostServlet?op=getinfobypid&pid=3
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/RepostServlet?op=getinfobypid&pid=%d",pid];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSArray *results= [stringdata JSONValue];
+	return results;
+//	NSString *strUrl = [ServerRoot stringByAppendingFormat:@"/servlet/RepostServlet"] ;
+//	ASIFormDataRequest *request = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:strUrl]] ;
+//	[request setPostValue:@"getinfobypid" forKey:@"op"];
+//	[request setPostValue:[NSNumber numberWithInt:pid] forKey:@"pid"];
+//	NSLog(@"----pid=%d",pid);
+//	[request start] ;
+//	NSString *jsonString= [request responseString] ;
+//	//解析JSON数据，保存在字典类变量上
+//	if (jsonString==nil) {
+//	    return nil;
+//	}else {
+//		
+//		NSLog(@"--------- jsonString＝%@",jsonString);
+//		
+//		NSArray *results= [jsonString JSONValue];
+//		return results;
+//		 }
+}
+//储存为最喜欢的帖子
+-(NSString *)SavePost:(int)pid
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=updatesave&pid=%d&uid=%d",pid,m_uid];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	return stringdata;
+	
+}
+//储存为喜欢的贴吧
+-(NSString *)SaveTopic:(int)tid
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/TopicServlet?op=updatesave&tid=%d&uid=%d",tid,m_uid];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	return stringdata;
+}
+//显示历史记录
+-(NSDictionary *)HistoryView
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=history&uid=%d",m_uid];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *results=[stringdata JSONValue];
+    return results;	
+}
+//将浏览的帖子加入进历史纪录中和根据帖子id查询详细
+-(NSDictionary *)HistoryResult:(int)pid
+{
+	NSString	*strUrl	= [ServerRoot stringByAppendingFormat:@"/servlet/PostsServlet?op=getinfobyid&pid=%d&uid=%d",pid,m_uid];
+	NSString *stringdata=[self GetString:strUrl];
+	if (!stringdata) {
+		return nil;
+	}
+	NSDictionary *results=[stringdata JSONValue];
+	NSDictionary *dic;
+	for (NSDictionary *data in results) {
+		NSString *pname=[data objectForKey:@"pname"];	
+		NSString *pcontent=[data objectForKey:@"pcontent"];
+		NSString *fromLabel=[data objectForKey:@"uname"];
+		dic=[[NSDictionary alloc]initWithObjectsAndKeys:pname,@"pname",pcontent,@"pcontent",fromLabel,@"fromLabel",nil];
+		NSLog(@"dic=======%@",dic);
+	}
+    return dic;	
+   
+	
+}
+//发帖
+-(NSString *)PostPosts:(int)tid PostName:(NSString *)pName PostContent:(NSString *)pContent DataImage:(NSData *)dataImage DataMusic:(NSData *)dataMusic
+{
+	NSString *urlString = [ServerRoot stringByAppendingFormat:@"/servlet/UploadServlet"] ;																					
+	ASIFormDataRequest *request=[ASIFormDataRequest requestWithURL:[NSURL URLWithString:urlString]];
+	[request setPostFormat:ASIMultipartFormDataPostFormat];
+	[request setPostValue:@"addposts" forKey:@"op"];
+	[request setPostValue:[NSNumber numberWithInt:tid] forKey:@"tid"];
+	[request setPostValue:[NSNumber numberWithInt:m_uid] forKey:@"uid"];
+	[request setPostValue:pName		forKey:@"pname"];
+	[request setPostValue:pContent	forKey:@"pcontent"];
+	//NSData *data = UIImageJPEGRepresentation(tempImage, 0.6f);
+	if (dataImage) {
+		[request setData:dataImage forKey:@"pimage"];
+	}
+	if (dataMusic) {
+		[request setData:dataMusic forKey:@"pmusic"];
+	}
+	[request start];
+	
+	NSString *stringdata=[request responseString];
+	return stringdata;
+	
+	
+}
+//回帖
+-(NSString *)RePost:(int)pid Recontent:(NSString *)recontent
+{
+	NSString *urlString = [ServerRoot stringByAppendingFormat:@"/servlet/RepostServlet?op=addrepost&pid=%d&uid=%d&recontent=%@",pid,m_uid,recontent] ;
+	NSString *stringdata= [self GetString:urlString];
+	if (!stringdata) {
+		return nil;
+	}
+	return stringdata;
+}
+- (void) facebookLogin {
+	NSLog(@"%@,%@",m_facebook , m_facebookPermissions);
+	[m_facebook authorize:m_facebookPermissions delegate:self];
+}
+- (void) fetchFacebookUser {
+	[m_facebook requestWithGraphPath:@"me" andDelegate:self];
+}
+- (void)facebookLogout {
+	[m_facebook logout:self];
+}
+
+- (NSString *) facebookLog2MyServer {
+	NSString *strUrl = @"http://192.168.1.14:8080/PostBar/servlet/UsersServlet";
+	ASIFormDataRequest *request = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:strUrl]] ;
+	[request setPostValue:@"Login" forKey:@"op"];
+	[request setPostValue:@"facebook" forKey:@"logintype"];
+	[request setPostValue:m_facebook.accessToken forKey:@"token"];
+	[request setPostValue:m_facebookUserName forKey:@"name"];
+	
+	[request start] ;
+	
+	NSString *result = [request responseString];
+	return result;
+}
+
+#pragma mark -
+#pragma mark FacebookSessionDelegate/**
+/* Called when the user has logged in successfully.
+ */
+- (void)fbDidLogin {
+	NSLog(@"didLogin--->token = %@------%d" ,m_facebook.accessToken , m_facebook.accessToken.length);
+	if (delegate && [delegate respondsToSelector:@selector(facebookLoginSuccess)]) {
+		[delegate facebookLoginSuccess] ;
+	}
+}
+
+/**
+ * Called when the user canceled the authorization dialog.
+ */
+-(void)fbDidNotLogin:(BOOL)cancelled {
+	NSLog(@"did not login");
+}
+
+/**
+ * Called when the request logout has succeeded.
+ */
+- (void)fbDidLogout {
+	
+}
+
+#pragma mark -
+#pragma mark Facebook
+////////////////////////////////////////////////////////////////////////////////
+// FBRequestDelegate
+
+/**
+ * Called when the Facebook API request has returned a response. This callback
+ * gives you access to the raw response. It's called before
+ * (void)request:(FBRequest *)request didLoad:(id)result,
+ * which is passed the parsed response object.
+ */
+- (void)request:(FBRequest *)request didReceiveResponse:(NSURLResponse *)response {
+	NSLog(@"received response");
+}
+
+/**
+ * Called when a request returns and its response has been parsed into
+ * an object. The resulting object may be a dictionary, an array, a string,
+ * or a number, depending on the format of the API response. If you need access
+ * to the raw response, use:
+ *
+ * (void)request:(FBRequest *)request
+ *      didReceiveResponse:(NSURLResponse *)response
+ */
+- (void)request:(FBRequest *)request didLoad:(id)result {
+	NSLog(@"result = %@" , result) ;
+	
+	if ([result isKindOfClass:[NSArray class]]) {
+		result = [result objectAtIndex:0];
+	}
+	
+	self.m_facebookUserName = [result objectForKey:@"name"];
+	self.m_uid				= [[result objectForKey:@"uid"] intValue];
+	//send facebook name & accessToken to my server 
+	
+	if (delegate && [delegate respondsToSelector:@selector(fetchUserSuccess)]) {
+		[delegate fetchUserSuccess] ;
+	}
+	
+}
+
+/**
+ * Called when an error prevents the Facebook API request from completing
+ * successfully.
+ */
+- (void)request:(FBRequest *)request didFailWithError:(NSError *)error {
+	
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+// FBDialogDelegate
+
+/**
+ * Called when a UIServer Dialog successfully return.
+ */
+- (void)dialogDidComplete:(FBDialog *)dialog {
+	
+}
+
+- (void)didReceiveMemoryWarning {
+    // Releases the view if it doesn't have a superview.
+    [super didReceiveMemoryWarning];
+    
+    // Release any cached data, images, etc. that aren't in use.
+}
+
+- (void)viewDidUnload {
+    [super viewDidUnload];
+    // Release any retained subviews of the main view.
+    // e.g. self.myOutlet = nil;
+}
+
+
+- (void)dealloc {
+    [super dealloc];
+}
+
+
+@end
